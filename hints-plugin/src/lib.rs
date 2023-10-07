@@ -29,7 +29,7 @@ impl Plugin for HintPlugin {
     type Error = Infallible;
 
     fn start() -> Result<Self, Self::Error> {
-        logging::configure("HINTS_PLUGIN_LOG", true);
+        logging::init("HINTS_PLUGIN_LOG");
         let app = Rc::new(RefCell::new(
             Hints::new(ConfigLocation::RelativeToPlugin).expect("Unable to create Hints app"),
         ));

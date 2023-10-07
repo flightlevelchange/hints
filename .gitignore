@@ -1,5 +1,6 @@
 target/
 Cargo.lock
+.cargo/
 
 .idea/
 .DS_Store

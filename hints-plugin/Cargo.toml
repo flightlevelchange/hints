@@ -8,10 +8,10 @@ authors = ["David Dunwoody <david@flightlevelchange.co.uk>"]
 crate-type = ["cdylib"]
 
 [dependencies]
-dcommon = { path = "../../davionics/dcommon" }
+dcommon = { git = "https://github.com/flightlevelchange/davionics.git" }
 hints = { path = "../hints", features = ["xplane"] }
-imgui-support = { path = "../../davionics/imgui-support", features = ["xplane"] }
+imgui-support = { git = "https://github.com/flightlevelchange/imgui-support.git", features = ["xplane"] }
 tracing = "0.1.37"
 xplm = { git = "https://github.com/ddunwoody/rust-xplm.git" }
-xplm-ext = { path = "../../davionics/xplm-ext" }
+xplm-ext = { git = "https://github.com/flightlevelchange/davionics.git" }
 

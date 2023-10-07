@@ -18,6 +18,7 @@ pub use crate::app::{ConfigLocation, Hints, HintsEvent};
 compile_error!("One of the features ['standalone', 'xplane'] must be enabled");
 
 mod app;
+mod concurrent;
 mod hints;
 
 const TITLE: &str = "Hints";

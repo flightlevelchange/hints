@@ -16,8 +16,8 @@ use imgui_support::App;
 use serde::Deserialize;
 use tracing::{debug, warn};
 
-use dcommon::concurrent::thread_loader;
 use dcommon::ui::events::{Action, Event};
+use crate::concurrent::thread_loader;
 
 use crate::hints::Hint;
 
@@ -70,7 +70,7 @@ impl Hints {
                 },
                 Err(e) => warn!(error=%e, "Unable to create hint"),
             };
-        })?;
+        });
 
         for image_path in config.images {
             tx.send(image_path)?;

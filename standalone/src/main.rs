@@ -8,6 +8,7 @@
 #![warn(clippy::pedantic)]
 
 use std::path::PathBuf;
+use glfw::fail_on_errors;
 
 use tracing_subscriber::layer::SubscriberExt;
 
@@ -21,7 +22,7 @@ fn main() {
         .with(stdout_layer);
     tracing::subscriber::set_global_default(subscriber).expect("Could not set global default");
 
-    let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).expect("GLFW failed to init");
+    let mut glfw = glfw::init(fail_on_errors!()).expect("GLFW failed to init");
     glfw.window_hint(glfw::WindowHint::ContextVersion(2, 1));
 
     let bounds = imgui_support::standalone::get_screen_bounds(&mut glfw);

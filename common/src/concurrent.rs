@@ -5,8 +5,8 @@
  */
 
 use std::sync::mpsc::{channel, Receiver, Sender};
+use std::thread;
 
-use dcommon::concurrent::spawn_thread_with_name;
 use tracing::error;
 
 /// Creates a `Sender`, `Receiver` pair that can be used to load data in a background thread.
@@ -37,4 +37,17 @@ pub fn thread_loader<I, F, O>(send_output: bool, mut f: F) -> (Sender<I>, Receiv
         }
     });
     (tx_in, rx_out)
+}
+
+fn spawn_thread_with_name<F, T, S>(name: S, f: F) -> thread::JoinHandle<T>
+    where
+        F: FnOnce() -> T,
+        F: Send + 'static,
+        T: Send + 'static,
+        S: Into<String>,
+{
+    thread::Builder::new()
+        .name(name.into())
+        .spawn(f)
+        .expect("Failed to spawn thread")
 }

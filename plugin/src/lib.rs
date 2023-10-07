@@ -8,16 +8,19 @@
 #![warn(clippy::pedantic)]
 
 use std::cell::RefCell;
+use std::ffi::c_void;
 use std::path::PathBuf;
 use std::rc::Rc;
-use imgui_support::xplane::System;
 
+use imgui_support::xplane::System;
 use thiserror::Error;
-use tracing::{error, warn};
+use tracing::{debug, error, info, trace, warn};
 use xplm::command::{CommandHandler, OwnedCommand};
 use xplm::menu::{CheckHandler, CheckItem, Menu};
 use xplm::plugin::Plugin;
 use xplm_ext::logging;
+use xplm_ext::plugin::utils::{get_current_aircraft_icao, get_current_aircraft_path, get_plugin_path, get_prefs_path, get_xplane_path};
+use xplm_sys::{XPLM_MSG_LIVERY_LOADED, XPLM_MSG_PLANE_UNLOADED};
 
 use hints_common::{FROM_EDGE_MIN, FROM_EDGE_PROPORTION, get_offset_from_edge, HEIGHT, Hints, HintsEvent, LOGGING_ENV_VAR, TITLE, WIDTH};
 
@@ -26,21 +29,22 @@ use hints_common::{FROM_EDGE_MIN, FROM_EDGE_PROPORTION, get_offset_from_edge, HE
 struct ConfigError;
 
 struct HintPlugin {
+    internals: Option<Internals>,
+    aircraft_loaded: bool,
+}
+
+struct Internals {
     _menu: Menu,
     _next_command: OwnedCommand,
     _previous_command: OwnedCommand,
     _toggle_window_command: OwnedCommand,
 }
 
-impl Plugin for HintPlugin {
-    type Error = ConfigError;
-
-    fn start() -> Result<Self, Self::Error> {
-        logging::init(LOGGING_ENV_VAR, false);
+impl Internals {
+    fn new() -> Self {
         let config = find_config();
-        if let Err(e) = config {
-            error!("Unable to start hints plugin: {e}");
-            return Err(e);
+        if let Err(e) = &config {
+            error!("Unable to find config: {e}");
         }
         let app = Rc::new(RefCell::new(
             Hints::new(config.unwrap()).expect("Unable to create Hints app"),
@@ -63,7 +67,7 @@ impl Plugin for HintPlugin {
         };
         menu.add_child::<Rc<CheckItem>, CheckItem>(toggle);
         menu.add_to_plugins_menu();
-        Ok(HintPlugin {
+        Internals {
             _menu: menu,
             _next_command: create_event_sending_command(
                 "flc/hints/next",
@@ -82,7 +86,33 @@ impl Plugin for HintPlugin {
                 "Toggle window visibility",
                 toggle_command_handler,
             ),
+        }
+    }
+}
+
+impl Plugin for HintPlugin {
+    type Error = ConfigError;
+
+    fn start() -> Result<Self, Self::Error> {
+        logging::init(LOGGING_ENV_VAR, false);
+        trace!("start()");
+        Ok(HintPlugin {
+            internals: None,
+            aircraft_loaded: false,
         })
+    }
+
+    fn enable(&mut self) -> Result<(), Self::Error> {
+        trace!("enable()");
+        if self.aircraft_loaded {
+            self.internals = Some(Internals::new());
+        }
+        Ok(())
+    }
+
+    fn disable(&mut self) {
+        trace!("disable()");
+        self.internals.take();
     }
 
     fn info(&self) -> xplm::plugin::PluginInfo {
@@ -92,6 +122,23 @@ impl Plugin for HintPlugin {
             description: String::from(
                 "Pop-up/pop-out window containing hint images for the current aircraft",
             ),
+        }
+    }
+
+    fn receive_message(&mut self, _from: i32, message: i32, _param: *mut c_void) {
+        trace!("Received message {message}");
+        match message as u32 {
+            XPLM_MSG_LIVERY_LOADED => {
+                debug!("Livery loaded");
+                self.aircraft_loaded = true;
+                self.internals = Some(Internals::new())
+            }
+            XPLM_MSG_PLANE_UNLOADED => {
+                debug!("Plane unloaded");
+                self.aircraft_loaded = false;
+                self.internals.take();
+            }
+            _ => {}
         }
     }
 }
@@ -153,11 +200,21 @@ impl CheckHandler for ToggleWindowCheckHandler {
 }
 
 fn find_config() -> Result<PathBuf, ConfigError> {
-    Err(ConfigError)
-    // Ok(xplm_ext::plugin::utils::get_plugin_path()
-    //     .parent()
-    //     .unwrap()
-    //     .join("../data/config.toml"))
+    debug!("Finding config...");
+    debug!("get_plugin_path():           {:?}", get_plugin_path());
+    debug!("get_xplane_path():           {:?}", get_xplane_path());
+    debug!("get_prefs_path():            {:?}", get_prefs_path());
+    debug!("get_current_aircraft_path(): {:?}", get_current_aircraft_path());
+    debug!("get_current_aircraft_icao(): {:?}", get_current_aircraft_icao());
+    let config = get_plugin_path()
+        .parent()
+        .unwrap()
+        .join("../data/config.toml");
+    info!("Loading configuration from {config:?}");
+    Ok(get_plugin_path()
+        .parent()
+        .unwrap()
+        .join("../data/config.toml"))
 }
 
 fn init_xplane(app: Rc<RefCell<Hints>>) -> System {

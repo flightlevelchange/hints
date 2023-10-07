@@ -118,7 +118,7 @@ impl App for Hints {
         let hints = self.hints.lock().unwrap();
         if let Some(hint) = hints.get(self.current_hint_idx) {
             let (width, height) = hint.dimensions();
-            let scale_factor = get_scale_factor((width, height), ui.window_size());
+            let scale_factor = get_scale_factor((width, height), ui.content_region_max());
             if let Some(texture_id) = hint.texture_id() {
                 #[allow(clippy::cast_precision_loss)]
                 {

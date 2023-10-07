@@ -46,10 +46,10 @@ impl Internals {
             Hints::new(&path.unwrap()).expect("Unable to create Hints app"),
         ));
         let system = Rc::new(RefCell::new(init_xplane(Rc::clone(&app))));
-        let menu = Menu::new("Hints").expect("Unable to create hints menu");
+        let menu = Menu::new("FLChints").expect("Unable to create hints menu");
         let toggle = Rc::new(
             CheckItem::new(
-                "Show hints window",
+                "Show hints",
                 false,
                 ToggleWindowCheckHandler {
                     system: Rc::clone(&system),
@@ -78,7 +78,7 @@ impl Internals {
                 app,
             ),
             _toggle_window_command: create_owned_command(
-                "flc/hints/toggle_window",
+                "flc/hints/toggle",
                 "Toggle window visibility",
                 toggle_command_handler,
             ),
@@ -113,10 +113,10 @@ impl Plugin for HintPlugin {
 
     fn info(&self) -> xplm::plugin::PluginInfo {
         xplm::plugin::PluginInfo {
-            name: String::from("FLC Hints"),
+            name: String::from("FLChints"),
             signature: String::from("uk.co.flightlevelchange.hints"),
             description: String::from(
-                "Pop-up/pop-out window containing hint images for the current aircraft",
+                "Displays a set of hint images for the current aircraft",
             ),
         }
     }

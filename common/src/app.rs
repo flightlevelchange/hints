@@ -6,17 +6,16 @@
 
 use std::cmp::Ordering;
 use std::error::Error;
-use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use dcommon::ui::events::{Action, Event};
 use imgui::{Image, Key, Ui};
 use imgui_support::App;
-use serde::Deserialize;
 use tracing::{debug, warn};
 
 use crate::concurrent::thread_loader;
+use crate::ConfigError;
 use crate::hints::Hint;
 
 pub struct Hints {
@@ -24,47 +23,32 @@ pub struct Hints {
     current_hint_idx: usize,
 }
 
-#[derive(Default, Deserialize)]
-struct Config {
-    images: Vec<String>,
-}
-
 impl Hints {
     /// # Errors
     ///
     /// Returns an error if the config file cannot be found or parsed.
     pub fn new(path: PathBuf) -> Result<Self, Box<dyn Error>> {
-        let config = load_config(&path)?;
         let hints: Arc<Mutex<Vec<Hint>>> = Arc::new(Mutex::new(vec![]));
         let thread_hints = Arc::clone(&hints);
-        let (tx, _) = thread_loader(false, move |image_path: String| {
-            let p = if let Some(p) = path.parent() {
-                p
-            } else {
-                warn!(path = %path.display(), "Unable to get parent");
-                &path
-            };
-            let p = p.join(image_path);
-
-            let p = match p.canonicalize() {
-                Ok(p) => p,
-                Err(e) => {
-                    warn!(error=%e, path=%p.display(), "Unable to canonicalize path");
-                    p
-                }
-            };
-
-            match Hint::new(p) {
+        let (tx, _) = thread_loader(false, move |image_path: PathBuf| {
+            match Hint::new(&image_path) {
                 Ok(hint) => match thread_hints.lock() {
                     Ok(mut hints) => hints.push(hint),
                     Err(e) => warn!(error=%e, "Unable to lock hints"),
                 },
-                Err(e) => warn!(error=%e, "Unable to create hint"),
+                Err(e) => warn!("Unable to create hint from {image_path:?}: {e}"),
             };
         });
 
-        for image_path in config.images {
-            tx.send(image_path)?;
+        if !path.is_dir() {
+            return Err(Box::new(ConfigError::new(format!("{} is not a directory", path.display()))));
+        }
+        let mut files = std::fs::read_dir(&path).unwrap()
+            .map(|res| res.map(|e| e.path()))
+            .collect::<Result<Vec<_>, std::io::Error>>().unwrap();
+        files.sort();
+        for f in files {
+            tx.send(f)?;
         }
         drop(tx);
 
@@ -99,17 +83,6 @@ impl Hints {
                 debug!(new_idx = self.current_hint_idx, "previous_hint()");
             }
         }
-    }
-}
-
-fn load_config<P: AsRef<Path>>(path: P) -> Result<Config, Box<dyn Error>> {
-    debug!(path=%path.as_ref().display(), "Reading configuration");
-    match fs::read_to_string(path) {
-        Ok(contents) => match toml::from_str::<Config>(&contents) {
-            Ok(config) => Ok(config),
-            Err(e) => Err(Box::new(e)),
-        },
-        Err(e) => Err(Box::new(e)),
     }
 }
 

@@ -13,20 +13,15 @@ use std::path::PathBuf;
 use std::rc::Rc;
 
 use imgui_support::xplane::System;
-use thiserror::Error;
 use tracing::{debug, error, info, trace, warn};
 use xplm::command::{CommandHandler, OwnedCommand};
 use xplm::menu::{CheckHandler, CheckItem, Menu};
 use xplm::plugin::Plugin;
 use xplm_ext::logging;
-use xplm_ext::plugin::utils::{get_current_aircraft_icao, get_current_aircraft_path, get_plugin_path, get_prefs_path, get_xplane_path};
+use xplm_ext::plugin::utils::get_current_aircraft_path;
 use xplm_sys::{XPLM_MSG_LIVERY_LOADED, XPLM_MSG_PLANE_UNLOADED};
 
-use hints_common::{FROM_EDGE_MIN, FROM_EDGE_PROPORTION, get_offset_from_edge, HEIGHT, Hints, HintsEvent, LOGGING_ENV_VAR, TITLE, WIDTH};
-
-#[derive(Error, Debug)]
-#[error("Unable to locate config file")]
-struct ConfigError;
+use hints_common::{ConfigError, FROM_EDGE_MIN, FROM_EDGE_PROPORTION, get_offset_from_edge, HEIGHT, Hints, HintsEvent, LOGGING_ENV_VAR, TITLE, WIDTH};
 
 struct HintPlugin {
     internals: Option<Internals>,
@@ -41,13 +36,14 @@ struct Internals {
 }
 
 impl Internals {
-    fn new() -> Self {
-        let config = find_config();
-        if let Err(e) = &config {
-            error!("Unable to find config: {e}");
+    fn new() -> Option<Self> {
+        let path = find_path();
+        if path.is_none() {
+            error!("Unable to find hints directory - plugin will do nothing");
+            return None;
         }
         let app = Rc::new(RefCell::new(
-            Hints::new(config.unwrap()).expect("Unable to create Hints app"),
+            Hints::new(path.unwrap()).expect("Unable to create Hints app"),
         ));
         let system = Rc::new(RefCell::new(init_xplane(Rc::clone(&app))));
         let menu = Menu::new("Hints").expect("Unable to create hints menu");
@@ -67,7 +63,7 @@ impl Internals {
         };
         menu.add_child::<Rc<CheckItem>, CheckItem>(toggle);
         menu.add_to_plugins_menu();
-        Internals {
+        Some(Internals {
             _menu: menu,
             _next_command: create_event_sending_command(
                 "flc/hints/next",
@@ -86,7 +82,7 @@ impl Internals {
                 "Toggle window visibility",
                 toggle_command_handler,
             ),
-        }
+        })
     }
 }
 
@@ -105,7 +101,7 @@ impl Plugin for HintPlugin {
     fn enable(&mut self) -> Result<(), Self::Error> {
         trace!("enable()");
         if self.aircraft_loaded {
-            self.internals = Some(Internals::new());
+            self.internals = Internals::new();
         }
         Ok(())
     }
@@ -131,7 +127,7 @@ impl Plugin for HintPlugin {
             XPLM_MSG_LIVERY_LOADED => {
                 debug!("Livery loaded");
                 self.aircraft_loaded = true;
-                self.internals = Some(Internals::new())
+                self.internals = Internals::new();
             }
             XPLM_MSG_PLANE_UNLOADED => {
                 debug!("Plane unloaded");
@@ -199,22 +195,16 @@ impl CheckHandler for ToggleWindowCheckHandler {
     }
 }
 
-fn find_config() -> Result<PathBuf, ConfigError> {
-    debug!("Finding config...");
-    debug!("get_plugin_path():           {:?}", get_plugin_path());
-    debug!("get_xplane_path():           {:?}", get_xplane_path());
-    debug!("get_prefs_path():            {:?}", get_prefs_path());
-    debug!("get_current_aircraft_path(): {:?}", get_current_aircraft_path());
-    debug!("get_current_aircraft_icao(): {:?}", get_current_aircraft_icao());
-    let config = get_plugin_path()
-        .parent()
-        .unwrap()
-        .join("../data/config.toml");
-    info!("Loading configuration from {config:?}");
-    Ok(get_plugin_path()
-        .parent()
-        .unwrap()
-        .join("../data/config.toml"))
+fn find_path() -> Option<PathBuf> {
+    let aircraft_path = get_current_aircraft_path().join("hints");
+    info!("Looking for hints in {aircraft_path:?}");
+    if aircraft_path.is_dir() {
+        info!("Loading hints from {aircraft_path:?}");
+        Some(aircraft_path)
+    } else {
+        warn!("No hints found in {aircraft_path:?}");
+        None
+    }
 }
 
 fn init_xplane(app: Rc<RefCell<Hints>>) -> System {

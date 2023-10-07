@@ -28,7 +28,6 @@ impl Hints {
     /// # Errors
     ///
     /// Returns an error if the config file cannot be found or parsed.
-    #[allow(clippy::missing_panics_doc)]
     pub fn new(path: PathBuf) -> Result<Self, Box<dyn Error>> {
         if !path.is_dir() {
             return Err(Box::new(ConfigError::new(format!("{} is not a directory", path.display()))));
@@ -41,8 +40,8 @@ impl Hints {
         hints.reload();
         Ok(hints)
     }
-    
-    fn reload(&mut self) {
+
+    pub fn reload(&mut self) {
         info!("Loading hints from {:?}", self.path);
         self.current_hint_idx = 0;
         self.hints.lock().unwrap().clear();
@@ -76,7 +75,6 @@ impl Hints {
         }
     }
 
-    #[allow(clippy::missing_panics_doc)]
     pub fn handle_hints_event(&mut self, event: HintsEvent) {
         match event {
             HintsEvent::NextHint => {
@@ -101,7 +99,7 @@ impl Hints {
             }
         }
     }
-    
+
     fn have_hints(&self) -> bool {
         let hints = self.hints.lock().expect("Could not lock hints");
         if hints.is_empty() {

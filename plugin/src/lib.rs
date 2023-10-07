@@ -6,6 +6,7 @@
 
 #![deny(clippy::all)]
 #![warn(clippy::pedantic)]
+#![allow(clippy::missing_panics_doc)]
 
 use std::cell::RefCell;
 use std::ffi::c_void;
@@ -15,7 +16,7 @@ use std::rc::Rc;
 use imgui_support::xplane::System;
 use tracing::{debug, error, info, trace, warn};
 use xplm::command::{CommandHandler, OwnedCommand};
-use xplm::menu::{CheckHandler, CheckItem, Menu};
+use xplm::menu::{ActionItem, CheckHandler, CheckItem, Menu, MenuClickHandler};
 use xplm::plugin::Plugin;
 use xplm_ext::logging;
 use xplm_ext::plugin::utils::get_current_aircraft_path;
@@ -63,6 +64,13 @@ impl Internals {
             toggle: Rc::clone(&toggle),
         };
         menu.add_child::<Rc<CheckItem>, CheckItem>(toggle);
+        
+        let reload = Rc::new(
+            ActionItem::new("Reload", ReloadMenuClickHandler {
+                app: Rc::clone(&app),
+            })
+                .expect("Unable to create reload menu item"));
+        menu.add_child::<Rc<ActionItem>, ActionItem>(reload);
         menu.add_to_plugins_menu();
         Some(Internals {
             _menu: menu,
@@ -200,6 +208,16 @@ struct ToggleWindowCheckHandler {
 impl CheckHandler for ToggleWindowCheckHandler {
     fn item_checked(&mut self, _: &CheckItem, checked: bool) {
         self.system.borrow_mut().set_hint_window_visible(checked);
+    }
+}
+
+struct ReloadMenuClickHandler {
+    app: Rc<RefCell<Hints>>,
+}
+
+impl MenuClickHandler for ReloadMenuClickHandler {
+    fn item_clicked(&mut self, _item: &ActionItem) {
+        self.app.borrow_mut().reload();
     }
 }
 

@@ -43,7 +43,7 @@ impl Internals {
             return None;
         }
         let app = Rc::new(RefCell::new(
-            Hints::new(path.unwrap()).expect("Unable to create Hints app"),
+            Hints::new(&path.unwrap()).expect("Unable to create Hints app"),
         ));
         let system = Rc::new(RefCell::new(init_xplane(Rc::clone(&app))));
         let menu = Menu::new("Hints").expect("Unable to create hints menu");
@@ -123,6 +123,7 @@ impl Plugin for HintPlugin {
 
     fn receive_message(&mut self, _from: i32, message: i32, _param: *mut c_void) {
         trace!("Received message {message}");
+        #[allow(clippy::cast_sign_loss)]
         match message as u32 {
             XPLM_MSG_LIVERY_LOADED => {
                 debug!("Livery loaded");

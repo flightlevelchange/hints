@@ -30,6 +30,7 @@ pub struct ConfigError {
 }
 
 impl ConfigError {
+    #[must_use]
     pub fn new(msg: String) -> Self {
         ConfigError {
             msg,

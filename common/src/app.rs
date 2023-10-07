@@ -27,7 +27,8 @@ impl Hints {
     /// # Errors
     ///
     /// Returns an error if the config file cannot be found or parsed.
-    pub fn new(path: PathBuf) -> Result<Self, Box<dyn Error>> {
+    #[allow(clippy::missing_panics_doc)]
+    pub fn new(path: &PathBuf) -> Result<Self, Box<dyn Error>> {
         let hints: Arc<Mutex<Vec<Hint>>> = Arc::new(Mutex::new(vec![]));
         let thread_hints = Arc::clone(&hints);
         let (tx, _) = thread_loader(false, move |image_path: PathBuf| {
@@ -43,7 +44,7 @@ impl Hints {
         if !path.is_dir() {
             return Err(Box::new(ConfigError::new(format!("{} is not a directory", path.display()))));
         }
-        let mut files = std::fs::read_dir(&path).unwrap()
+        let mut files = std::fs::read_dir(path).unwrap()
             .map(|res| res.map(|e| e.path()))
             .collect::<Result<Vec<_>, std::io::Error>>().unwrap();
         files.sort();

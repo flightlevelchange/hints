@@ -9,27 +9,17 @@
 
 use std::path::PathBuf;
 
-use tracing_subscriber::EnvFilter;
 use tracing_subscriber::layer::SubscriberExt;
-use tracing_subscriber::util::SubscriberInitExt;
 
-use hints_common::{FROM_EDGE_MIN, FROM_EDGE_PROPORTION, get_offset_from_edge, HEIGHT, Hints, TITLE, WIDTH};
+use hints_common::{FROM_EDGE_MIN, FROM_EDGE_PROPORTION, get_offset_from_edge, HEIGHT, Hints, LOGGING_ENV_VAR, TITLE, WIDTH};
 
 fn main() {
-    #[cfg(target_os = "windows")]
-        let ansi = false;
-    #[cfg(not(target_os = "windows"))]
-        let ansi = true;
-
-    let fmt_layer = tracing_subscriber::fmt::layer()
-        .with_ansi(ansi)
-        .with_thread_names(true);
-    let filter_layer = EnvFilter::from_default_env();
-
-    tracing_subscriber::registry()
-        .with(filter_layer)
-        .with(fmt_layer)
-        .init();
+    let stdout_layer = dcommon::logging::layer(None);
+    let filter = dcommon::logging::env_filter(Some(LOGGING_ENV_VAR));
+    let subscriber = tracing_subscriber::registry()
+        .with(filter)
+        .with(stdout_layer);
+    tracing::subscriber::set_global_default(subscriber).expect("Could not set global default");
 
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).expect("GLFW failed to init");
     glfw.window_hint(glfw::WindowHint::ContextVersion(2, 1));

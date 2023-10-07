@@ -18,7 +18,7 @@ use xplm::menu::{CheckHandler, CheckItem, Menu};
 use xplm::plugin::Plugin;
 use xplm_ext::logging;
 
-use hints_common::{FROM_EDGE_MIN, FROM_EDGE_PROPORTION, get_offset_from_edge, HEIGHT, Hints, HintsEvent, TITLE, WIDTH};
+use hints_common::{FROM_EDGE_MIN, FROM_EDGE_PROPORTION, get_offset_from_edge, HEIGHT, Hints, HintsEvent, LOGGING_ENV_VAR, TITLE, WIDTH};
 
 struct HintPlugin {
     _menu: Menu,
@@ -31,7 +31,7 @@ impl Plugin for HintPlugin {
     type Error = Infallible;
 
     fn start() -> Result<Self, Self::Error> {
-        logging::init("HINTS_PLUGIN_LOG");
+        logging::init(LOGGING_ENV_VAR);
         let app = Rc::new(RefCell::new(
             Hints::new(get_path()).expect("Unable to create Hints app"),
         ));
@@ -45,7 +45,7 @@ impl Plugin for HintPlugin {
                     system: Rc::clone(&system),
                 },
             )
-                .expect("Unable to crate show hints window menu item"),
+                .expect("Unable to create show hints window menu item"),
         );
         let toggle_command_handler = ToggleWindowCommandHandler {
             system,
@@ -146,7 +146,7 @@ fn get_path() -> PathBuf {
     xplm_ext::plugin::utils::get_plugin_path()
         .parent()
         .unwrap()
-        .join("../hints/config.toml")
+        .join("../data/config.toml")
 }
 
 fn init_xplane(app: Rc<RefCell<Hints>>) -> imgui_support::xplane::System {

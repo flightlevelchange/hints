@@ -12,13 +12,14 @@ use std::sync::{Arc, Mutex};
 use dcommon::ui::events::{Action, Event};
 use imgui::{Image, Key, Ui};
 use imgui_support::App;
-use tracing::{debug, warn};
+use tracing::{info, trace, warn};
 
 use crate::concurrent::thread_loader;
 use crate::ConfigError;
 use crate::hints::Hint;
 
 pub struct Hints {
+    path: PathBuf,
     hints: Arc<Mutex<Vec<Hint>>>,
     current_hint_idx: usize,
 }
@@ -28,9 +29,24 @@ impl Hints {
     ///
     /// Returns an error if the config file cannot be found or parsed.
     #[allow(clippy::missing_panics_doc)]
-    pub fn new(path: &PathBuf) -> Result<Self, Box<dyn Error>> {
-        let hints: Arc<Mutex<Vec<Hint>>> = Arc::new(Mutex::new(vec![]));
-        let thread_hints = Arc::clone(&hints);
+    pub fn new(path: PathBuf) -> Result<Self, Box<dyn Error>> {
+        if !path.is_dir() {
+            return Err(Box::new(ConfigError::new(format!("{} is not a directory", path.display()))));
+        }
+        let mut hints = Hints {
+            path,
+            hints: Arc::new(Mutex::new(vec![])),
+            current_hint_idx: 0,
+        };
+        hints.reload();
+        Ok(hints)
+    }
+    
+    fn reload(&mut self) {
+        info!("Loading hints from {:?}", self.path);
+        self.current_hint_idx = 0;
+        self.hints.lock().unwrap().clear();
+        let thread_hints = Arc::clone(&self.hints);
         let (tx, _) = thread_loader(false, move |image_path: PathBuf| {
             match Hint::new(&image_path) {
                 Ok(hint) => match thread_hints.lock() {
@@ -41,22 +57,17 @@ impl Hints {
             };
         });
 
-        if !path.is_dir() {
-            return Err(Box::new(ConfigError::new(format!("{} is not a directory", path.display()))));
-        }
-        let mut files = std::fs::read_dir(path).unwrap()
+        let mut files = std::fs::read_dir(&self.path).unwrap()
             .map(|res| res.map(|e| e.path()))
             .collect::<Result<Vec<_>, std::io::Error>>().unwrap();
         files.sort();
+        if files.is_empty() {
+            warn!("No files found in {:?}", self.path);
+        }
         for f in files {
-            tx.send(f)?;
+            tx.send(f).unwrap();
         }
         drop(tx);
-
-        Ok(Hints {
-            hints,
-            current_hint_idx: 0,
-        })
     }
 
     fn deallocate_current_texture(&self, hints: &[Hint]) {
@@ -67,22 +78,37 @@ impl Hints {
 
     #[allow(clippy::missing_panics_doc)]
     pub fn handle_hints_event(&mut self, event: HintsEvent) {
-        let hints = self.hints.lock().expect("Could not lock hints");
-        if hints.is_empty() {
-            warn!("Check log for errors. No hints were loaded.");
-            return;
-        }
         match event {
             HintsEvent::NextHint => {
-                self.deallocate_current_texture(&hints);
-                self.current_hint_idx = (self.current_hint_idx + 1) % hints.len();
-                debug!(new_idx = self.current_hint_idx, "next_hint()");
+                if self.have_hints() {
+                    let hints = self.hints.lock().expect("Could not lock hints");
+                    self.deallocate_current_texture(&hints);
+                    self.current_hint_idx = (self.current_hint_idx + 1) % hints.len();
+                    trace!(new_idx = self.current_hint_idx, "HintsEvent::NextHint");
+                }
             }
             HintsEvent::PreviousHint => {
-                self.deallocate_current_texture(&hints);
-                self.current_hint_idx = (self.current_hint_idx + hints.len() - 1) % hints.len();
-                debug!(new_idx = self.current_hint_idx, "previous_hint()");
+                if self.have_hints() {
+                    let hints = self.hints.lock().expect("Could not lock hints");
+                    self.deallocate_current_texture(&hints);
+                    self.current_hint_idx = (self.current_hint_idx + hints.len() - 1) % hints.len();
+                    trace!(new_idx = self.current_hint_idx, "HintsEvent::PreviousHint");
+                }
             }
+            HintsEvent::Reload => {
+                self.reload();
+                trace!("HintsEvent::Reload");
+            }
+        }
+    }
+    
+    fn have_hints(&self) -> bool {
+        let hints = self.hints.lock().expect("Could not lock hints");
+        if hints.is_empty() {
+            warn!("Check log for errors. No hints are loaded");
+            false
+        } else {
+            true
         }
     }
 }
@@ -128,6 +154,7 @@ fn get_scale_factor(image_size: (u32, u32), window_size: [f32; 2]) -> f32 {
 pub enum HintsEvent {
     NextHint,
     PreviousHint,
+    Reload,
 }
 
 impl HintsEvent {
@@ -143,6 +170,7 @@ impl HintsEvent {
                     match key {
                         Key::UpArrow => Some(Self::PreviousHint),
                         Key::DownArrow => Some(Self::NextHint),
+                        Key::R => Some(Self::Reload),
                         _ => None,
                     }
                 } else {

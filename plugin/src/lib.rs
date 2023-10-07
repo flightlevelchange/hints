@@ -32,6 +32,7 @@ struct Internals {
     _menu: Menu,
     _next_command: OwnedCommand,
     _previous_command: OwnedCommand,
+    _reload_command: OwnedCommand,
     _toggle_window_command: OwnedCommand,
 }
 
@@ -43,7 +44,7 @@ impl Internals {
             return None;
         }
         let app = Rc::new(RefCell::new(
-            Hints::new(&path.unwrap()).expect("Unable to create Hints app"),
+            Hints::new(path.unwrap()).expect("Unable to create FLChints app"),
         ));
         let system = Rc::new(RefCell::new(init_xplane(Rc::clone(&app))));
         let menu = Menu::new("FLChints").expect("Unable to create hints menu");
@@ -75,11 +76,17 @@ impl Internals {
                 "flc/hints/previous",
                 "Show previous hint",
                 HintsEvent::PreviousHint,
+                Rc::clone(&app),
+            ),
+            _reload_command: create_event_sending_command(
+                "flc/hints/reload",
+                "Reload",
+                HintsEvent::Reload,
                 app,
             ),
             _toggle_window_command: create_owned_command(
                 "flc/hints/toggle",
-                "Toggle window visibility",
+                "Toggle window",
                 toggle_command_handler,
             ),
         })
@@ -200,7 +207,6 @@ fn find_path() -> Option<PathBuf> {
     let aircraft_path = get_current_aircraft_path().join("hints");
     info!("Looking for hints in {aircraft_path:?}");
     if aircraft_path.is_dir() {
-        info!("Loading hints from {aircraft_path:?}");
         Some(aircraft_path)
     } else {
         warn!("No hints found in {aircraft_path:?}");

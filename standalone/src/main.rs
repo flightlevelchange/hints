@@ -37,7 +37,7 @@ fn main() {
             vert_offset + FROM_EDGE_MIN as i32 as u32,
             WIDTH,
             HEIGHT,
-            Hints::new(&get_path()).expect("Unable to create Hints app"),
+            Hints::new(get_path()).expect("Unable to create Hints app"),
         );
         system.main_loop();
     }

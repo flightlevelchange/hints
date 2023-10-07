@@ -21,7 +21,7 @@ lipo -create -output "${DIST}/mac_x64/${NAME}.xpl" \
 for target in x86_64-pc-windows-gnu x86_64-unknown-linux-gnu; do
     echo "Building ${target}..."
     docker run --rm -it \
-      --mount type=volume,src=cargo-registry,target=/usr/local/cargo/registry \
+      --mount type=volume,src=cargo,target=/usr/local/cargo \
       --mount "type=bind,source=${XPLANE_SDK},target=/usr/src/xplane,readonly" \
       --mount "type=bind,source=$(pwd)/../davionics,target=/usr/src/davionics,readonly" \
       --mount "type=bind,source=$(pwd),target=/usr/src/myapp" \

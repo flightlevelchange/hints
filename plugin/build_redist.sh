@@ -8,12 +8,11 @@
 
 DIR="hints-plugin"
 TARGET="${DIR//-/_}"
-NAME="${DIR%-plugin}"
+NAME="FLChints"
 DIST_DIR="../target/dist/${NAME}"
-PLUGIN_DIR="${DIST_DIR}/plugins/${NAME}"
 VERSION="$(grep -m1 version ../Cargo.toml | cut -d= -f2 | tr -d ' "')"
 
-(mkdir -p "${PLUGIN_DIR}" && cd "${PLUGIN_DIR}" \
+(mkdir -p "${DIST_DIR}" && cd "${DIST_DIR}" \
   && mkdir -p lin_x64 mac_x64 win_x64)
 
 for arch in aarch64 x86_64; do
@@ -22,7 +21,7 @@ for arch in aarch64 x86_64; do
 done
 
 echo "Creating MacOS universal plugin..."
-lipo -create -output "${PLUGIN_DIR}/mac_x64/${NAME}.xpl" \
+lipo -create -output "${DIST_DIR}/mac_x64/${NAME}.xpl" \
   "../target/x86_64-apple-darwin/release/lib${TARGET}.dylib" \
   "../target/aarch64-apple-darwin/release/lib${TARGET}.dylib"
 
@@ -37,9 +36,10 @@ for target in x86_64-pc-windows-gnu x86_64-unknown-linux-gnu; do
       builder cargo build --release --target "${target}"
 done
 
-cp "../target/x86_64-pc-windows-gnu/release/${TARGET}.dll" "${PLUGIN_DIR}/win_x64/${NAME}.xpl"
-cp "../target/x86_64-unknown-linux-gnu/release/lib${TARGET}.so" "${PLUGIN_DIR}/lin_x64/${NAME}.xpl"
+cp "../target/x86_64-pc-windows-gnu/release/${TARGET}.dll" "${DIST_DIR}/win_x64/${NAME}.xpl"
+cp "../target/x86_64-unknown-linux-gnu/release/lib${TARGET}.so" "${DIST_DIR}/lin_x64/${NAME}.xpl"
 
-(cd ../target/dist && zip -rq "${DIR}-${VERSION}.zip" "${NAME}")
+cp ../LICENSE README.md "${DIST_DIR}"
+(cd ../target/dist && zip -rq "${NAME}-${VERSION}.zip" ${NAME})
 
-echo "Distribution built at ../target/dist/${DIR}-${VERSION}.zip"
+echo "Distribution built at ../target/dist/${NAME}-${VERSION}.zip"

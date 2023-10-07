@@ -1,10 +1,16 @@
 [workspace]
 
 members = [
-    "hints",
-    "hints-plugin",
+    "common",
+    "plugin",
+    "standalone",
 ]
 resolver = "2"
+
+[workspace.package]
+authors = ["David Dunwoody <david@flightlevelchange.co.uk>"]
+edition = "2021"
+version = "0.1.0-alpha.19"
 
 [profile.release]
 lto = true
@@ -12,3 +18,8 @@ strip = true
 opt-level = 3
 panic = 'abort'
 codegen-units = 1
+
+[workspace.metadata.release]
+publish = false
+shared-version = true
+tag-prefix = ""

@@ -1,5 +1,5 @@
 /*
- * Copyright © 2023 David Dunwoody.
+ * Copyright (c) 2023 David Dunwoody.
  *
  * All rights reserved.
  */
@@ -9,14 +9,16 @@
 
 use std::cell::RefCell;
 use std::convert::Infallible;
+use std::path::PathBuf;
 use std::rc::Rc;
 
-use hints::{init_xplane, ConfigLocation, Hints, HintsEvent};
 use imgui_support::xplane::System;
 use xplm::command::{CommandHandler, OwnedCommand};
 use xplm::menu::{CheckHandler, CheckItem, Menu};
 use xplm::plugin::Plugin;
 use xplm_ext::logging;
+
+use hints_common::{FROM_EDGE_MIN, FROM_EDGE_PROPORTION, get_offset_from_edge, HEIGHT, Hints, HintsEvent, TITLE, WIDTH};
 
 struct HintPlugin {
     _menu: Menu,
@@ -31,7 +33,7 @@ impl Plugin for HintPlugin {
     fn start() -> Result<Self, Self::Error> {
         logging::init("HINTS_PLUGIN_LOG");
         let app = Rc::new(RefCell::new(
-            Hints::new(ConfigLocation::RelativeToPlugin).expect("Unable to create Hints app"),
+            Hints::new(get_path()).expect("Unable to create Hints app"),
         ));
         let system = Rc::new(RefCell::new(init_xplane(Rc::clone(&app))));
         let menu = Menu::new("Hints").expect("Unable to create hints menu");
@@ -43,7 +45,7 @@ impl Plugin for HintPlugin {
                     system: Rc::clone(&system),
                 },
             )
-            .expect("Unable to crate show hints window menu item"),
+                .expect("Unable to crate show hints window menu item"),
         );
         let toggle_command_handler = ToggleWindowCommandHandler {
             system,
@@ -138,4 +140,25 @@ impl CheckHandler for ToggleWindowCheckHandler {
     fn item_checked(&mut self, _: &CheckItem, checked: bool) {
         self.system.borrow_mut().set_hint_window_visible(checked);
     }
+}
+
+fn get_path() -> PathBuf {
+    xplm_ext::plugin::utils::get_plugin_path()
+        .parent()
+        .unwrap()
+        .join("../hints/config.toml")
+}
+
+fn init_xplane(app: Rc<RefCell<Hints>>) -> imgui_support::xplane::System {
+    let bounds = imgui_support::xplane::get_screen_bounds();
+    let horiz_offset = get_offset_from_edge(bounds.width(), FROM_EDGE_PROPORTION, FROM_EDGE_MIN);
+    let vert_offset = get_offset_from_edge(bounds.height(), FROM_EDGE_PROPORTION, FROM_EDGE_MIN);
+    imgui_support::xplane::init(
+        TITLE,
+        bounds.width() - horiz_offset - WIDTH,
+        vert_offset * 2,
+        WIDTH,
+        HEIGHT,
+        app,
+    )
 }

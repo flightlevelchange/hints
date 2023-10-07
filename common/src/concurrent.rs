@@ -1,4 +1,11 @@
+/*
+ * Copyright (c) 2023 David Dunwoody.
+ *
+ * All rights reserved.
+ */
+
 use std::sync::mpsc::{channel, Receiver, Sender};
+
 use dcommon::concurrent::spawn_thread_with_name;
 use tracing::error;
 

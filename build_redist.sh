@@ -1,5 +1,11 @@
 #!/bin/bash -e
 
+#
+# Copyright (c) 2023 David Dunwoody.
+#
+# All rights reserved.
+#
+
 DIR="hints-plugin"
 TARGET="${DIR//-/_}"
 NAME="${DIR%-plugin}"

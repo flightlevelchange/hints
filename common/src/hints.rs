@@ -1,5 +1,5 @@
 /*
- * Copyright © 2023 David Dunwoody.
+ * Copyright (c) 2023 David Dunwoody.
  *
  * All rights reserved.
  */

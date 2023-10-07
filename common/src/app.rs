@@ -1,5 +1,5 @@
 /*
- * Copyright © 2023 David Dunwoody.
+ * Copyright (c) 2023 David Dunwoody.
  *
  * All rights reserved.
  */
@@ -10,15 +10,13 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
-use cfg_if::cfg_if;
+use dcommon::ui::events::{Action, Event};
 use imgui::{Image, Key, Ui};
 use imgui_support::App;
 use serde::Deserialize;
 use tracing::{debug, warn};
 
-use dcommon::ui::events::{Action, Event};
 use crate::concurrent::thread_loader;
-
 use crate::hints::Hint;
 
 pub struct Hints {
@@ -31,18 +29,11 @@ struct Config {
     images: Vec<String>,
 }
 
-#[derive(Debug, Copy, Clone)]
-pub enum ConfigLocation {
-    FromArgs,
-    RelativeToPlugin,
-}
-
 impl Hints {
     /// # Errors
     ///
     /// Returns an error if the config file cannot be found or parsed.
-    pub fn new(location: ConfigLocation) -> Result<Self, Box<dyn Error>> {
-        let path = get_path(location);
+    pub fn new(path: PathBuf) -> Result<Self, Box<dyn Error>> {
         let config = load_config(&path)?;
         let hints: Arc<Mutex<Vec<Hint>>> = Arc::new(Mutex::new(vec![]));
         let thread_hints = Arc::clone(&hints);
@@ -89,6 +80,7 @@ impl Hints {
         }
     }
 
+    #[allow(clippy::missing_panics_doc)]
     pub fn handle_hints_event(&mut self, event: HintsEvent) {
         let hints = self.hints.lock().expect("Could not lock hints");
         if hints.is_empty() {
@@ -121,36 +113,6 @@ fn load_config<P: AsRef<Path>>(path: P) -> Result<Config, Box<dyn Error>> {
     }
 }
 
-fn get_path(location: ConfigLocation) -> PathBuf {
-    match location {
-        ConfigLocation::FromArgs => {
-            cfg_if! {
-                if #[cfg(feature = "standalone")] {
-                    use std::env;
-                    let args: Vec<String> = env::args().collect();
-                    assert!(args.len() == 2, "Expected exactly one argument: path to config file");
-                    PathBuf::from(&args[1])
-                } else {
-                    panic!("ConfigLocation::FromArgs is only supported in standalone mode")
-                }
-            }
-        }
-        ConfigLocation::RelativeToPlugin => {
-            cfg_if! {
-                if #[cfg(feature = "xplane")] {
-                    use xplm_ext::plugin::utils::get_plugin_path;
-                    get_plugin_path()
-                        .parent()
-                        .unwrap()
-                        .join("../hints/config.toml")
-                } else {
-                    panic!("ConfigLocation::RelativeToPlugin is only supported in xplane mode")
-                }
-            }
-        }
-    }
-}
-
 impl App for Hints {
     fn draw_ui(&self, ui: &Ui) {
         let hints = self.hints.lock().unwrap();
@@ -164,7 +126,7 @@ impl App for Hints {
                         texture_id,
                         [width as f32 * scale_factor, height as f32 * scale_factor],
                     )
-                    .build(ui);
+                        .build(ui);
                 }
             }
         }

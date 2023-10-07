@@ -8,17 +8,22 @@
 #![warn(clippy::pedantic)]
 
 use std::cell::RefCell;
-use std::convert::Infallible;
 use std::path::PathBuf;
 use std::rc::Rc;
-
 use imgui_support::xplane::System;
+
+use thiserror::Error;
+use tracing::{error, warn};
 use xplm::command::{CommandHandler, OwnedCommand};
 use xplm::menu::{CheckHandler, CheckItem, Menu};
 use xplm::plugin::Plugin;
 use xplm_ext::logging;
 
 use hints_common::{FROM_EDGE_MIN, FROM_EDGE_PROPORTION, get_offset_from_edge, HEIGHT, Hints, HintsEvent, LOGGING_ENV_VAR, TITLE, WIDTH};
+
+#[derive(Error, Debug)]
+#[error("Unable to locate config file")]
+struct ConfigError;
 
 struct HintPlugin {
     _menu: Menu,
@@ -28,12 +33,17 @@ struct HintPlugin {
 }
 
 impl Plugin for HintPlugin {
-    type Error = Infallible;
+    type Error = ConfigError;
 
     fn start() -> Result<Self, Self::Error> {
-        logging::init(LOGGING_ENV_VAR);
+        logging::init(LOGGING_ENV_VAR, false);
+        let config = find_config();
+        if let Err(e) = config {
+            error!("Unable to start hints plugin: {e}");
+            return Err(e);
+        }
         let app = Rc::new(RefCell::new(
-            Hints::new(get_path()).expect("Unable to create Hints app"),
+            Hints::new(config.unwrap()).expect("Unable to create Hints app"),
         ));
         let system = Rc::new(RefCell::new(init_xplane(Rc::clone(&app))));
         let menu = Menu::new("Hints").expect("Unable to create hints menu");
@@ -142,14 +152,15 @@ impl CheckHandler for ToggleWindowCheckHandler {
     }
 }
 
-fn get_path() -> PathBuf {
-    xplm_ext::plugin::utils::get_plugin_path()
-        .parent()
-        .unwrap()
-        .join("../data/config.toml")
+fn find_config() -> Result<PathBuf, ConfigError> {
+    Err(ConfigError)
+    // Ok(xplm_ext::plugin::utils::get_plugin_path()
+    //     .parent()
+    //     .unwrap()
+    //     .join("../data/config.toml"))
 }
 
-fn init_xplane(app: Rc<RefCell<Hints>>) -> imgui_support::xplane::System {
+fn init_xplane(app: Rc<RefCell<Hints>>) -> System {
     let bounds = imgui_support::xplane::get_screen_bounds();
     let horiz_offset = get_offset_from_edge(bounds.width(), FROM_EDGE_PROPORTION, FROM_EDGE_MIN);
     let vert_offset = get_offset_from_edge(bounds.height(), FROM_EDGE_PROPORTION, FROM_EDGE_MIN);

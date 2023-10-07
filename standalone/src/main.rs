@@ -8,14 +8,14 @@
 #![warn(clippy::pedantic)]
 
 use std::path::PathBuf;
-use glfw::fail_on_errors;
 
+use glfw::fail_on_errors;
 use tracing_subscriber::layer::SubscriberExt;
 
 use hints_common::{FROM_EDGE_MIN, FROM_EDGE_PROPORTION, get_offset_from_edge, HEIGHT, Hints, LOGGING_ENV_VAR, TITLE, WIDTH};
 
 fn main() {
-    let stdout_layer = dcommon::logging::layer(None);
+    let stdout_layer = dcommon::logging::layer(false, None);
     let filter = dcommon::logging::env_filter(Some(LOGGING_ENV_VAR));
     let subscriber = tracing_subscriber::registry()
         .with(filter)

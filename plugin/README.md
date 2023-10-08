@@ -1,11 +1,11 @@
-# FLChints plugin for X-Plane 12
+# FLC Hints plugin for X-Plane 12
 
-FLChints is a plugin for X-Plane 12 that displays a set of hint images for the current aircraft. Typically this is used
+FLC Hints is a plugin for X-Plane 12 that displays a set of hint images for the current aircraft. Typically this is used
 for checklists.
 
 ## Installation
 
-FLCHints is installed into the `plugins` directory of your X-Plane 12 installation. This directory is within
+FLC Hints is installed into the `plugins` directory of your X-Plane 12 installation. This directory is within
 the `Resources` directory:
 
 ```
@@ -13,7 +13,7 @@ the `Resources` directory:
 ```
 
 1. Download the latest release from
-   the [FLChints GitHub releases page](https://github.com/flightlevelchange/hints/releases).
+   the [FLC Hints GitHub releases page](https://github.com/flightlevelchange/hints/releases).
 2. Extract the downloaded zip file into the `plugins` directory.
 
 When installed correctly, the installation should look like this:
@@ -22,13 +22,13 @@ When installed correctly, the installation should look like this:
 X-Plane 12
 |- Resources
 |  |- plugins
-|  |  |- FLChints
+|  |  |- FLCHints
 |  |  |  |- lin_x64
-|  |  |  |  |- FLChints.xpl
+|  |  |  |  |- FLCHints.xpl
 |  |  |  |- mac_x64
-|  |  |  |  |- FLChints.xpl
+|  |  |  |  |- FLCHints.xpl
 |  |  |  |- win_x64
-|  |  |  |  |- FLChints.xpl
+|  |  |  |  |- FLCHints.xpl
 ```
 
 ## Usage
@@ -57,13 +57,13 @@ X-Plane 12
 
 1. Start X-Plane 12
 2. Load the aircraft
-3. Open the hints window using the menu `Plugins > FLChints > Show hints` or the command `flc/hints/toggle`
+3. Open the hints window using the menu `Plugins > FLC Hints > Show hints` or the command `flc/hints/toggle`
 4. Cycle hints with the mouse scroll-wheel or the commands `flc/hints/previous` and `flc/hints/next`
 
 
 ### Reloading hints
 
-Hints can be reloaded from disk using the menu `Plugins > FLChints > Reload` or the command `flc/hints/reload`.
+Hints can be reloaded from disk using the menu `Plugins > FLC Hints > Reload` or the command `flc/hints/reload`.
 
 ### Troubleshooting
 

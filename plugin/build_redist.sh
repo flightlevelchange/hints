@@ -8,7 +8,7 @@
 
 DIR="hints-plugin"
 TARGET="${DIR//-/_}"
-NAME="FLChints"
+NAME="FLCHints"
 DIST_DIR="../target/dist/${NAME}"
 VERSION="$(grep -m1 version ../Cargo.toml | cut -d= -f2 | tr -d ' "')"
 

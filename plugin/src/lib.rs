@@ -123,7 +123,7 @@ impl Internals {
             return None;
         }
         let app = Rc::new(RefCell::new(
-            Hints::new(path.unwrap()).expect("Unable to create FLChints app"),
+            Hints::new(path.unwrap()).expect("Unable to create FLC Hints app"),
         ));
         let wrapper = Rc::new(RefCell::new(SystemWrapper::new(init_xplane(Rc::clone(
             &app,
@@ -196,7 +196,7 @@ fn create_menu(
     wrapper: &Rc<RefCell<SystemWrapper>>,
     app: &Rc<RefCell<Hints>>,
 ) -> (Menu, Rc<CheckItem>) {
-    let menu = Menu::new("FLChints").expect("Unable to create hints menu");
+    let menu = Menu::new("FLC Hints").expect("Unable to create hints menu");
     let toggle = Rc::new(
         CheckItem::new(
             "Show hints",
@@ -285,7 +285,7 @@ impl Plugin for HintPlugin {
 
     fn info(&self) -> xplm::plugin::PluginInfo {
         xplm::plugin::PluginInfo {
-            name: String::from("FLChints"),
+            name: String::from("FLC Hints"),
             signature: String::from("uk.co.flightlevelchange.hints"),
             description: String::from("Displays a set of hint images for the current aircraft"),
         }

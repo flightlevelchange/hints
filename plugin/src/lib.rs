@@ -13,16 +13,25 @@ use std::ffi::c_void;
 use std::path::PathBuf;
 use std::rc::Rc;
 
+use dcommon::ui::geometry::Rect;
 use imgui_support::xplane::System;
+use serde::{Deserialize, Serialize};
 use tracing::{debug, error, info, trace, warn};
 use xplm::command::{CommandHandler, OwnedCommand};
 use xplm::menu::{ActionItem, CheckHandler, CheckItem, Menu, MenuClickHandler};
 use xplm::plugin::Plugin;
 use xplm_ext::logging;
-use xplm_ext::plugin::utils::get_current_aircraft_path;
+use xplm_ext::plugin::utils::{
+    get_current_aircraft_filename, get_current_aircraft_icao, get_current_aircraft_path,
+    get_prefs_path,
+};
+use xplm_ext::ui::{PositioningMode, Ref};
 use xplm_sys::{XPLM_MSG_LIVERY_LOADED, XPLM_MSG_PLANE_UNLOADED};
 
-use hints_common::{ConfigError, FROM_EDGE_MIN, FROM_EDGE_PROPORTION, get_offset_from_edge, HEIGHT, Hints, HintsEvent, LOGGING_ENV_VAR, TITLE, WIDTH};
+use hints_common::{
+    get_offset_from_edge, ConfigError, Hints, HintsEvent, FROM_EDGE_MIN, FROM_EDGE_PROPORTION,
+    HEIGHT, LOGGING_ENV_VAR, TITLE, WIDTH,
+};
 
 struct HintPlugin {
     internals: Option<Internals>,
@@ -35,6 +44,75 @@ struct Internals {
     _previous_command: OwnedCommand,
     _reload_command: OwnedCommand,
     _toggle_window_command: OwnedCommand,
+    _load_command: OwnedCommand,
+    _save_command: OwnedCommand,
+    _reset_command: OwnedCommand,
+}
+
+struct SystemWrapper {
+    system: System,
+    default_geometry: Rect,
+}
+
+impl SystemWrapper {
+    fn new(system: System) -> Self {
+        let default_geometry = system.window().geometry();
+        let mut wrapper = Self {
+            system,
+            default_geometry,
+        };
+        wrapper.load(true);
+        wrapper
+    }
+
+    #[must_use]
+    pub fn toggle_hint_window(&mut self) -> bool {
+        self.system.window_mut().toggle_visible()
+    }
+
+    pub fn set_hint_window_visible(&mut self, visible: bool) {
+        self.system.window_mut().set_visible(visible);
+    }
+
+    fn save(&self) {
+        if let Some(filename) = get_state_path() {
+            let state = State::from(self.system.window());
+            let toml = toml::to_string_pretty(&state).unwrap();
+            match std::fs::write(&filename, toml) {
+                Ok(()) => info!("Saved hints window state to {filename:?}"),
+                Err(e) => error!("Unable to save hints window state: {e}"),
+            }
+        }
+    }
+
+    fn load(&mut self, quietly: bool) {
+        if let Some(filename) = get_state_path() {
+            if filename.is_file() {
+                match std::fs::read_to_string(&filename) {
+                    Ok(toml) => match toml::from_str::<State>(&toml) {
+                        Ok(state) => {
+                            let window = self.system.window_mut();
+                            window.set_positioning_mode(PositioningMode::from(&state.mode));
+                            window.set_geometry(&state.position);
+                            window.set_visible(state.visible);
+                            info!("Loaded hints window state from {filename:?}");
+                        }
+                        Err(e) => error!("Unable to parse hints window state: {e}"),
+                    },
+                    Err(e) => error!("Unable to read from {filename:?}: {e}"),
+                }
+            } else if !quietly {
+                warn!("Unable to find any saved window state to load at {filename:?}");
+            }
+        }
+    }
+
+    fn reset(&mut self) {
+        let window = self.system.window_mut();
+        window.set_positioning_mode(PositioningMode::Free);
+        window.set_visible(true);
+        window.set_geometry(&self.default_geometry);
+    }
 }
 
 impl Internals {
@@ -47,31 +125,29 @@ impl Internals {
         let app = Rc::new(RefCell::new(
             Hints::new(path.unwrap()).expect("Unable to create FLChints app"),
         ));
-        let system = Rc::new(RefCell::new(init_xplane(Rc::clone(&app))));
-        let menu = Menu::new("FLChints").expect("Unable to create hints menu");
-        let toggle = Rc::new(
-            CheckItem::new(
-                "Show hints",
-                false,
-                ToggleWindowCheckHandler {
-                    system: Rc::clone(&system),
-                },
-            )
-                .expect("Unable to create show hints window menu item"),
-        );
+        let wrapper = Rc::new(RefCell::new(SystemWrapper::new(init_xplane(Rc::clone(
+            &app,
+        )))));
+
+        let (menu, toggle) = create_menu(&wrapper, &app);
+
         let toggle_command_handler = ToggleWindowCommandHandler {
-            system,
+            wrapper: Rc::clone(&wrapper),
             toggle: Rc::clone(&toggle),
         };
-        menu.add_child::<Rc<CheckItem>, CheckItem>(toggle);
-        
-        let reload = Rc::new(
-            ActionItem::new("Reload", ReloadMenuClickHandler {
-                app: Rc::clone(&app),
-            })
-                .expect("Unable to create reload menu item"));
-        menu.add_child::<Rc<ActionItem>, ActionItem>(reload);
-        menu.add_to_plugins_menu();
+
+        let save_command_handler = SaveCommandHandler {
+            wrapper: Rc::clone(&wrapper),
+        };
+
+        let load_command_handler = LoadCommandHandler {
+            wrapper: Rc::clone(&wrapper),
+        };
+
+        let reset_command_handler = ResetCommandHandler {
+            wrapper: Rc::clone(&wrapper),
+        };
+
         Some(Internals {
             _menu: menu,
             _next_command: create_event_sending_command(
@@ -88,17 +164,98 @@ impl Internals {
             ),
             _reload_command: create_event_sending_command(
                 "flc/hints/reload",
-                "Reload",
+                "Reload hints from disk",
                 HintsEvent::Reload,
                 app,
             ),
             _toggle_window_command: create_owned_command(
-                "flc/hints/toggle",
-                "Toggle window",
+                "flc/hints/window/toggle",
+                "Toggle window visibility",
                 toggle_command_handler,
+            ),
+            _load_command: create_owned_command(
+                "flc/hints/window/load",
+                "Load window position",
+                load_command_handler,
+            ),
+            _save_command: create_owned_command(
+                "flc/hints/window/save",
+                "Save window position",
+                save_command_handler,
+            ),
+            _reset_command: create_owned_command(
+                "flc/hints/window/reset",
+                "Reset window position",
+                reset_command_handler,
             ),
         })
     }
+}
+
+fn create_menu(
+    wrapper: &Rc<RefCell<SystemWrapper>>,
+    app: &Rc<RefCell<Hints>>,
+) -> (Menu, Rc<CheckItem>) {
+    let menu = Menu::new("FLChints").expect("Unable to create hints menu");
+    let toggle = Rc::new(
+        CheckItem::new(
+            "Show hints",
+            false,
+            ToggleWindowCheckHandler {
+                wrapper: Rc::clone(wrapper),
+            },
+        )
+        .expect("Unable to create show hints window menu item"),
+    );
+    menu.add_child::<Rc<CheckItem>, CheckItem>(Rc::clone(&toggle));
+
+    let window_menu = Menu::new("Window position").expect("Unable to create window menu");
+
+    window_menu.add_child(
+        ActionItem::new(
+            "Load",
+            LoadMenuClickHandler {
+                wrapper: Rc::clone(wrapper),
+            },
+        )
+        .expect("Unable to create load menu item"),
+    );
+
+    window_menu.add_child(
+        ActionItem::new(
+            "Save",
+            SaveMenuClickHandler {
+                wrapper: Rc::clone(wrapper),
+            },
+        )
+        .expect("Unable to create save menu item"),
+    );
+
+    window_menu.add_child(
+        ActionItem::new(
+            "Reset",
+            ResetMenuClickHandler {
+                wrapper: Rc::clone(wrapper),
+            },
+        )
+        .expect("Unable to create reset menu item"),
+    );
+    menu.add_child(window_menu);
+
+    menu.add_child(
+        ActionItem::new(
+            "Reload hints from disk",
+            ReloadMenuClickHandler {
+                app: Rc::clone(app),
+            },
+        )
+        .expect("Unable to create reload menu item"),
+    );
+
+    // TODO: add scale by 1.25 / 0.8
+
+    menu.add_to_plugins_menu();
+    (menu, toggle)
 }
 
 impl Plugin for HintPlugin {
@@ -130,9 +287,7 @@ impl Plugin for HintPlugin {
         xplm::plugin::PluginInfo {
             name: String::from("FLChints"),
             signature: String::from("uk.co.flightlevelchange.hints"),
-            description: String::from(
-                "Displays a set of hint images for the current aircraft",
-            ),
+            description: String::from("Displays a set of hint images for the current aircraft"),
         }
     }
 
@@ -188,13 +343,13 @@ impl CommandHandler for EventSendingCommandHandler {
 }
 
 struct ToggleWindowCommandHandler {
-    system: Rc<RefCell<System>>,
+    wrapper: Rc<RefCell<SystemWrapper>>,
     toggle: Rc<CheckItem>,
 }
 
 impl CommandHandler for ToggleWindowCommandHandler {
     fn command_begin(&mut self) {
-        let new_visibility = self.system.borrow_mut().toggle_hint_window();
+        let new_visibility = self.wrapper.borrow_mut().toggle_hint_window();
         self.toggle.set_checked(new_visibility);
     }
     fn command_continue(&mut self) {}
@@ -202,12 +357,12 @@ impl CommandHandler for ToggleWindowCommandHandler {
 }
 
 struct ToggleWindowCheckHandler {
-    system: Rc<RefCell<System>>,
+    wrapper: Rc<RefCell<SystemWrapper>>,
 }
 
 impl CheckHandler for ToggleWindowCheckHandler {
     fn item_checked(&mut self, _: &CheckItem, checked: bool) {
-        self.system.borrow_mut().set_hint_window_visible(checked);
+        self.wrapper.borrow_mut().set_hint_window_visible(checked);
     }
 }
 
@@ -218,6 +373,66 @@ struct ReloadMenuClickHandler {
 impl MenuClickHandler for ReloadMenuClickHandler {
     fn item_clicked(&mut self, _item: &ActionItem) {
         self.app.borrow_mut().reload();
+    }
+}
+
+struct LoadCommandHandler {
+    wrapper: Rc<RefCell<SystemWrapper>>,
+}
+
+impl CommandHandler for LoadCommandHandler {
+    fn command_begin(&mut self) {
+        self.wrapper.borrow_mut().load(false);
+    }
+}
+
+struct LoadMenuClickHandler {
+    wrapper: Rc<RefCell<SystemWrapper>>,
+}
+
+impl MenuClickHandler for LoadMenuClickHandler {
+    fn item_clicked(&mut self, _item: &ActionItem) {
+        self.wrapper.borrow_mut().load(false);
+    }
+}
+
+struct SaveCommandHandler {
+    wrapper: Rc<RefCell<SystemWrapper>>,
+}
+
+impl CommandHandler for SaveCommandHandler {
+    fn command_begin(&mut self) {
+        self.wrapper.borrow().save();
+    }
+}
+
+struct SaveMenuClickHandler {
+    wrapper: Rc<RefCell<SystemWrapper>>,
+}
+
+impl MenuClickHandler for SaveMenuClickHandler {
+    fn item_clicked(&mut self, _item: &ActionItem) {
+        self.wrapper.borrow().save();
+    }
+}
+
+struct ResetCommandHandler {
+    wrapper: Rc<RefCell<SystemWrapper>>,
+}
+
+impl CommandHandler for ResetCommandHandler {
+    fn command_begin(&mut self) {
+        self.wrapper.borrow_mut().reset();
+    }
+}
+
+struct ResetMenuClickHandler {
+    wrapper: Rc<RefCell<SystemWrapper>>,
+}
+
+impl MenuClickHandler for ResetMenuClickHandler {
+    fn item_clicked(&mut self, _item: &ActionItem) {
+        self.wrapper.borrow_mut().reset();
     }
 }
 
@@ -244,4 +459,75 @@ fn init_xplane(app: Rc<RefCell<Hints>>) -> System {
         HEIGHT,
         app,
     )
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+enum Mode {
+    Free,
+    PopOut,
+    VR,
+}
+
+impl From<&PositioningMode> for Mode {
+    fn from(value: &PositioningMode) -> Self {
+        match value {
+            PositioningMode::PopOut => Mode::PopOut,
+            PositioningMode::VR => Mode::VR,
+            _ => Mode::Free,
+        }
+    }
+}
+
+impl From<&Mode> for PositioningMode {
+    fn from(value: &Mode) -> Self {
+        match value {
+            Mode::PopOut => PositioningMode::PopOut,
+            Mode::VR => PositioningMode::VR,
+            Mode::Free => PositioningMode::Free,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct State {
+    mode: Mode,
+    position: Rect,
+    visible: bool,
+}
+
+impl From<&Ref> for State {
+    fn from(value: &Ref) -> Self {
+        let (positioning_mode, position) = value.current_geometry();
+        State {
+            mode: Mode::from(positioning_mode),
+            position,
+            visible: value.visible(),
+        }
+    }
+}
+
+fn get_current_aircraft_id() -> String {
+    if let Some(icao) = get_current_aircraft_icao() {
+        icao
+    } else {
+        let mut filename = get_current_aircraft_filename();
+        filename.set_extension("");
+        filename.to_str().unwrap().to_string()
+    }
+}
+
+fn get_save_directory() -> Option<PathBuf> {
+    let path = get_prefs_path().join("hints");
+    match std::fs::create_dir_all(&path) {
+        Ok(()) => Some(path),
+        Err(e) => {
+            error!("Could not create hints save directory: {e:?}");
+            None
+        }
+    }
+}
+
+fn get_state_path() -> Option<PathBuf> {
+    get_save_directory()
+        .map(|save_dir| save_dir.join(format!("{}.toml", get_current_aircraft_id())))
 }

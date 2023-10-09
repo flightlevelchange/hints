@@ -51,19 +51,27 @@ X-Plane 12
 |  |  |  |  |- 001-preflight.png
 |  |  |  |  |- 002-before-start.png
 |  |  |  |  |- 003-starting.png
-``` 
+```
 
-### Using hints
+After updating hints, they can be reloaded from disk using the menu `Plugins > FLC Hints > Reload hints from disk` or
+the command `flc/hints/reload`; there is no need to reload the aircraft or restart X-Plane.
+
+### Displaying hints
 
 1. Start X-Plane 12
 2. Load the aircraft
-3. Open the hints window using the menu `Plugins > FLC Hints > Show hints` or the command `flc/hints/toggle`
+3. Open the hints window using the menu `Plugins > FLC Hints > Show hints` or the command `flc/hints/window/toggle`
 4. Cycle hints with the mouse scroll-wheel or the commands `flc/hints/previous` and `flc/hints/next`
 
+### Saving and restoring the window position
 
-### Reloading hints
+The position of the hint window can be saved and restored, but it is not automatically saved.
+If a saved position is available, the window will be restored to that position when X-Plane is first loaded.
 
-Hints can be reloaded from disk using the menu `Plugins > FLC Hints > Reload` or the command `flc/hints/reload`.
+To save the window position, click the menu `Plugins > FLC Hints > Window position > Save` or trigger
+the `flc/hints/window/save`
+command. Similarly, loading and resetting the window position to the default is done with the `Load` / `Reset` menus and
+the `flc/hints/window/load` and `flc/hints/window/reset` commands.
 
 ### Troubleshooting
 

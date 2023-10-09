@@ -13,7 +13,8 @@ use std::ffi::c_void;
 use std::path::PathBuf;
 use std::rc::Rc;
 
-use dcommon::ui::geometry::Rect;
+use imgui_support::geometry::Rect;
+use imgui_support_xplane::ui::{PositioningMode, Ref};
 use imgui_support_xplane::System;
 use serde::{Deserialize, Serialize};
 use tracing::{debug, error, info, trace, warn};
@@ -25,7 +26,6 @@ use xplm_ext::plugin::utils::{
     get_current_aircraft_filename, get_current_aircraft_icao, get_current_aircraft_path,
     get_prefs_path,
 };
-use xplm_ext::ui::{PositioningMode, Ref};
 use xplm_sys::{XPLM_MSG_LIVERY_LOADED, XPLM_MSG_PLANE_UNLOADED};
 
 use hints_common::{

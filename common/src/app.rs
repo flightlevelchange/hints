@@ -9,14 +9,14 @@ use std::error::Error;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
-use dcommon::ui::events::{Action, Event};
 use imgui::{Image, Key, Ui};
+use imgui_support::events::{Action, Event};
 use imgui_support::App;
 use tracing::{info, trace, warn};
 
 use crate::concurrent::thread_loader;
-use crate::ConfigError;
 use crate::hints::Hint;
+use crate::ConfigError;
 
 pub struct Hints {
     path: PathBuf,
@@ -30,7 +30,10 @@ impl Hints {
     /// Returns an error if the config file cannot be found or parsed.
     pub fn new(path: PathBuf) -> Result<Self, Box<dyn Error>> {
         if !path.is_dir() {
-            return Err(Box::new(ConfigError::new(format!("{} is not a directory", path.display()))));
+            return Err(Box::new(ConfigError::new(format!(
+                "{} is not a directory",
+                path.display()
+            ))));
         }
         let mut hints = Hints {
             path,
@@ -56,9 +59,11 @@ impl Hints {
             };
         });
 
-        let mut files = std::fs::read_dir(&self.path).unwrap()
+        let mut files = std::fs::read_dir(&self.path)
+            .unwrap()
             .map(|res| res.map(|e| e.path()))
-            .collect::<Result<Vec<_>, std::io::Error>>().unwrap();
+            .collect::<Result<Vec<_>, std::io::Error>>()
+            .unwrap();
         files.sort();
         if files.is_empty() {
             warn!("No files found in {:?}", self.path);
@@ -124,7 +129,7 @@ impl App for Hints {
                         texture_id,
                         [width as f32 * scale_factor, height as f32 * scale_factor],
                     )
-                        .build(ui);
+                    .build(ui);
                 }
             }
         }

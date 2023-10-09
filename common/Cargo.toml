@@ -9,7 +9,7 @@ standalone = ["dep:imgui-support-standalone"]
 xplane = ["dep:imgui-support-xplane"]
 
 [dependencies]
-dcommon = { git = "https://github.com/flightlevelchange/davionics.git", features = ["ui"] }
+dcommon = { git = "https://github.com/flightlevelchange/davionics.git" }
 image = { version = "0.24.7", default-features = false, features = ["jpeg", "png"] }
 imgui = { git = "https://github.com/ddunwoody/imgui-rs.git", branch = "0.11-ddunwoody" }
 imgui-support = { git = "https://github.com/flightlevelchange/imgui-support.git" }

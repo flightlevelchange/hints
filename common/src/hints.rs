@@ -16,6 +16,9 @@ use imgui_support_standalone::create_texture;
 use imgui_support_xplane::create_texture;
 use tracing::{error, info};
 
+#[cfg(not(any(feature = "standalone", feature = "xplane")))]
+compile_error!("At least one of the following features must be enabled: standalone, xplane");
+
 #[derive(Debug)]
 pub struct Hint {
     image: RgbaImage,

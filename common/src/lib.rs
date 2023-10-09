@@ -33,12 +33,9 @@ pub struct ConfigError {
 impl ConfigError {
     #[must_use]
     pub fn new(msg: String) -> Self {
-        ConfigError {
-            msg,
-        }
+        ConfigError { msg }
     }
 }
-
 
 #[must_use]
 pub fn get_offset_from_edge(size: u32, proportion: u32, min: u32) -> u32 {

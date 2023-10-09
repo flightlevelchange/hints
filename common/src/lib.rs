@@ -16,6 +16,8 @@ mod app;
 mod concurrent;
 mod hints;
 
+pub mod logging;
+
 pub const TITLE: &str = "Hints";
 pub const WIDTH: u32 = 400;
 pub const HEIGHT: u32 = 300;

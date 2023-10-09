@@ -8,30 +8,36 @@
 #![warn(clippy::pedantic)]
 #![allow(clippy::missing_panics_doc)]
 
+mod utils;
+
 use std::cell::RefCell;
 use std::ffi::c_void;
 use std::path::PathBuf;
 use std::rc::Rc;
+use std::sync::OnceLock;
 
 use imgui_support::geometry::Rect;
 use imgui_support_xplane::ui::{PositioningMode, Ref};
 use imgui_support_xplane::System;
 use serde::{Deserialize, Serialize};
 use tracing::{debug, error, info, trace, warn};
+use tracing_subscriber::layer::SubscriberExt;
 use xplm::command::{CommandHandler, OwnedCommand};
 use xplm::menu::{ActionItem, CheckHandler, CheckItem, Menu, MenuClickHandler};
 use xplm::plugin::Plugin;
-use xplm_ext::logging;
-use xplm_ext::plugin::utils::{
-    get_current_aircraft_filename, get_current_aircraft_icao, get_current_aircraft_path,
-    get_prefs_path,
-};
 use xplm_sys::{XPLM_MSG_LIVERY_LOADED, XPLM_MSG_PLANE_UNLOADED};
 
+use crate::utils::{
+    get_current_aircraft_filename, get_current_aircraft_icao, get_current_aircraft_path,
+    get_prefs_path, XplmWrite,
+};
+use hints_common::logging::{env_filter, layer};
 use hints_common::{
     get_offset_from_edge, ConfigError, Hints, HintsEvent, FROM_EDGE_MIN, FROM_EDGE_PROPORTION,
     HEIGHT, LOGGING_ENV_VAR, TITLE, WIDTH,
 };
+
+static LOGGING: OnceLock<()> = OnceLock::new();
 
 struct HintPlugin {
     internals: Option<Internals>,
@@ -262,7 +268,7 @@ impl Plugin for HintPlugin {
     type Error = ConfigError;
 
     fn start() -> Result<Self, Self::Error> {
-        logging::init(LOGGING_ENV_VAR, false);
+        init_logging(LOGGING_ENV_VAR, false);
         trace!("start()");
         Ok(HintPlugin {
             internals: None,
@@ -530,4 +536,21 @@ fn get_save_directory() -> Option<PathBuf> {
 fn get_state_path() -> Option<PathBuf> {
     get_save_directory()
         .map(|save_dir| save_dir.join(format!("{}.toml", get_current_aircraft_id())))
+}
+
+fn init_logging(var: &str, with_thread_names: bool) {
+    LOGGING.get_or_init(|| configure_logging(var, with_thread_names));
+}
+
+fn configure_logging(env_var: &str, with_thread_names: bool) {
+    let stdout_layer = layer(with_thread_names, None);
+    let xp_layer = layer(with_thread_names, Some(false)).with_writer(|| XplmWrite);
+
+    let filter = env_filter(Some(env_var));
+    let subscriber = tracing_subscriber::registry()
+        .with(filter)
+        .with(stdout_layer)
+        .with(xp_layer);
+
+    tracing::subscriber::set_global_default(subscriber).expect("Could not set global default");
 }

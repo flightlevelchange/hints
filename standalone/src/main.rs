@@ -13,14 +13,15 @@ use std::path::PathBuf;
 use glfw::fail_on_errors;
 use tracing_subscriber::layer::SubscriberExt;
 
+use hints_common::logging::{env_filter, layer};
 use hints_common::{
     get_offset_from_edge, Hints, FROM_EDGE_MIN, FROM_EDGE_PROPORTION, HEIGHT, LOGGING_ENV_VAR,
     TITLE, WIDTH,
 };
 
 fn main() {
-    let stdout_layer = dcommon::logging::layer(false, None);
-    let filter = dcommon::logging::env_filter(Some(LOGGING_ENV_VAR));
+    let stdout_layer = layer(false, None);
+    let filter = env_filter(Some(LOGGING_ENV_VAR));
     let subscriber = tracing_subscriber::registry()
         .with(filter)
         .with(stdout_layer);

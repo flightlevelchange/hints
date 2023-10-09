@@ -5,6 +5,7 @@ members = [
     "plugin",
     "standalone",
 ]
+
 resolver = "2"
 
 [workspace.package]

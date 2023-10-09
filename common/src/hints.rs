@@ -9,7 +9,11 @@ use std::path::Path;
 
 use image::{ImageError, RgbaImage};
 use imgui::TextureId;
-use imgui_support::{create_texture, deallocate_texture};
+use imgui_support::deallocate_texture;
+#[cfg(feature = "standalone")]
+use imgui_support_standalone::create_texture;
+#[cfg(feature = "xplane")]
+use imgui_support_xplane::create_texture;
 use tracing::{error, info};
 
 #[derive(Debug)]

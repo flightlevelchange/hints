@@ -9,8 +9,9 @@ crate-type = ["cdylib"]
 
 [dependencies]
 dcommon = { git = "https://github.com/flightlevelchange/davionics.git" }
-hints-common = { path = "../common" }
-imgui-support = { git = "https://github.com/flightlevelchange/imgui-support.git", features = ["xplane"] }
+hints-common = { path = "../common", features = ["xplane"] }
+imgui-support = { git = "https://github.com/flightlevelchange/imgui-support.git" }
+imgui-support-xplane = { git = "https://github.com/flightlevelchange/imgui-support.git" }
 serde = { version = "1.0.188", features = ["derive"] }
 toml = "0.8.2"
 tracing = { version = "0.1.37", features = ["release_max_level_info"] }

@@ -14,7 +14,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 
 use dcommon::ui::geometry::Rect;
-use imgui_support::xplane::System;
+use imgui_support_xplane::System;
 use serde::{Deserialize, Serialize};
 use tracing::{debug, error, info, trace, warn};
 use xplm::command::{CommandHandler, OwnedCommand};
@@ -448,10 +448,10 @@ fn find_path() -> Option<PathBuf> {
 }
 
 fn init_xplane(app: Rc<RefCell<Hints>>) -> System {
-    let bounds = imgui_support::xplane::get_screen_bounds();
+    let bounds = imgui_support_xplane::get_screen_bounds();
     let horiz_offset = get_offset_from_edge(bounds.width(), FROM_EDGE_PROPORTION, FROM_EDGE_MIN);
     let vert_offset = get_offset_from_edge(bounds.height(), FROM_EDGE_PROPORTION, FROM_EDGE_MIN);
-    imgui_support::xplane::init(
+    imgui_support_xplane::init(
         TITLE,
         bounds.width() - horiz_offset - WIDTH,
         vert_offset * 2,

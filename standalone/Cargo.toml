@@ -7,8 +7,9 @@ version.workspace = true
 [dependencies]
 dcommon = { git = "https://github.com/flightlevelchange/davionics.git" }
 glfw = "0.53.0"
-hints-common = { path = "../common" }
-imgui-support = { git = "https://github.com/flightlevelchange/imgui-support.git", features = ["standalone"] }
+hints-common = { path = "../common", features = ["standalone"] }
+imgui-support = { git = "https://github.com/flightlevelchange/imgui-support.git" }
+imgui-support-standalone = { git = "https://github.com/flightlevelchange/imgui-support.git" }
 tracing = { version = "0.1.37", features = ["release_max_level_info"] }
 tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
 

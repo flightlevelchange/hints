@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 David Dunwoody.
+ * Copyright (c) 2023 Flight Level Change Ltd.
  *
  * All rights reserved.
  */
@@ -19,10 +19,10 @@ use tracing::error;
 ///
 /// Will return `Err` if the thread cannot be spawned.
 pub fn thread_loader<I, F, O>(send_output: bool, mut f: F) -> (Sender<I>, Receiver<O>)
-    where
-        I: Send + 'static,
-        F: FnMut(I) -> O + Send + 'static,
-        O: Send + 'static,
+where
+    I: Send + 'static,
+    F: FnMut(I) -> O + Send + 'static,
+    O: Send + 'static,
 {
     let (tx_in, rx_in) = channel::<I>();
     let (tx_out, rx_out) = channel::<O>();
@@ -40,11 +40,11 @@ pub fn thread_loader<I, F, O>(send_output: bool, mut f: F) -> (Sender<I>, Receiv
 }
 
 fn spawn_thread_with_name<F, T, S>(name: S, f: F) -> thread::JoinHandle<T>
-    where
-        F: FnOnce() -> T,
-        F: Send + 'static,
-        T: Send + 'static,
-        S: Into<String>,
+where
+    F: FnOnce() -> T,
+    F: Send + 'static,
+    T: Send + 'static,
+    S: Into<String>,
 {
     thread::Builder::new()
         .name(name.into())
